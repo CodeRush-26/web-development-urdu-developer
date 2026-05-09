@@ -12,6 +12,8 @@ Live ship control system for the Strait of Hormuz scenario. Built with Django an
 4. In a new terminal, run migrations and seed data:
    - `docker compose exec web python manage.py migrate`
    - `docker compose exec web python manage.py load_fleet`
+5. Start the simulator (new terminal):
+   - `docker compose exec web python manage.py run_simulation`
 
 App URL: http://localhost:8000
 
@@ -25,10 +27,13 @@ App URL: http://localhost:8000
    - `python manage.py load_fleet`
 4. Start server:
    - `python manage.py runserver`
+5. Start the simulator:
+   - `python manage.py run_simulation`
 
 ## Environment Variables
 
 - `Fleet212_POSTGRES_URL` or `Fleet212_PRISMA_DATABASE_URL` (recommended)
 - `DATABASE_URL` (alternative name)
+- `REDIS_URL` (required for WebSocket broadcasts across processes)
 
 If no database URL is set, Django falls back to SQLite for local use.

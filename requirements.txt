@@ -1,4 +1,7 @@
 asgiref==3.11.1
+channels==4.3.2
+channels-redis==4.3.0
+Daphne==4.2.1
 Django==6.0.5
 psycopg[binary]==3.2.10
 sqlparse==0.5.5
