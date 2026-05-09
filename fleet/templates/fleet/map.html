@@ -111,6 +111,97 @@
         gap: 10px;
       }
 
+      .alerts {
+        display: grid;
+        gap: 12px;
+      }
+
+      .rerouting-list {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+        background: rgba(14, 24, 22, 0.8);
+      }
+
+      .rerouting-list h3 {
+        margin: 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-dim);
+      }
+
+      .rerouting-list .item {
+        font-size: 12px;
+        color: var(--text-main);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .alert-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(14, 24, 22, 0.8);
+      }
+
+      .alert-card header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+      }
+
+      .alert-card .alert-title {
+        margin: 6px 0 4px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .alert-card .alert-meta {
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+
+      .alert-card.warning {
+        border-color: rgba(255, 209, 102, 0.4);
+      }
+
+      .alert-card.critical {
+        border-color: rgba(255, 107, 107, 0.5);
+      }
+
+      .distress-form {
+        display: grid;
+        gap: 8px;
+      }
+
+      .distress-form select,
+      .distress-form textarea {
+        width: 100%;
+        background: rgba(6, 12, 11, 0.6);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-main);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        padding: 8px;
+      }
+
+      .distress-form button {
+        background: var(--danger);
+        color: #160707;
+        border: none;
+        border-radius: 10px;
+        padding: 8px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
       .role-toggle {
         display: flex;
         align-items: center;
@@ -291,6 +382,16 @@
             Distressed / Stopped
           </div>
         </div>
+        <div class="rerouting-list" id="rerouting-panel">
+          <h3>Rerouting</h3>
+          <div class="item">None</div>
+        </div>
+        <div class="alerts" id="alerts-panel"></div>
+        <div class="distress-form">
+          <select id="distress-ship"></select>
+          <textarea id="distress-message" rows="3" placeholder="Captain distress message"></textarea>
+          <button id="distress-send" type="button">Send Distress</button>
+        </div>
       </aside>
       <main class="map-shell">
         <div class="map-header">
@@ -317,6 +418,9 @@
       };
       const roleState = {
         role: localStorage.getItem("fleet-role") || "command",
+      };
+      const alertState = {
+        items: [],
       };
 
       const map = L.map("map", {
@@ -346,6 +450,11 @@
       const mapMetaEl = document.getElementById("map-meta");
       const commandBtn = document.getElementById("role-command");
       const captainBtn = document.getElementById("role-captain");
+      const alertsPanel = document.getElementById("alerts-panel");
+      const reroutingPanel = document.getElementById("rerouting-panel");
+      const distressShip = document.getElementById("distress-ship");
+      const distressMessage = document.getElementById("distress-message");
+      const distressSend = document.getElementById("distress-send");
 
       function applyRole(role) {
         roleState.role = role;
@@ -505,6 +614,80 @@
         shipCountEl.textContent = ships.length;
         updateState.lastUpdate = Date.now();
         mapMetaEl.textContent = `Tracking ${ships.length} active hulls`;
+        updateDistressShips(ships);
+        renderRerouting(ships);
+      }
+
+      function renderRerouting(ships) {
+        const rerouting = ships.filter((ship) =>
+          (ship.status || "").toLowerCase().includes("rerout")
+        );
+        reroutingPanel.innerHTML = "<h3>Rerouting</h3>";
+        if (!rerouting.length) {
+          reroutingPanel.innerHTML += "<div class=\"item\">None</div>";
+          return;
+        }
+        rerouting.forEach((ship) => {
+          reroutingPanel.innerHTML += `
+            <div class="item">
+              <span>${ship.name}</span>
+              <span>${ship.ship_id}</span>
+            </div>
+          `;
+        });
+      }
+
+      function updateDistressShips(ships) {
+        if (distressShip.options.length === ships.length) {
+          return;
+        }
+        distressShip.innerHTML = "";
+        ships.forEach((ship) => {
+          const option = document.createElement("option");
+          option.value = ship.ship_id;
+          option.textContent = `${ship.name} (${ship.ship_id})`;
+          distressShip.appendChild(option);
+        });
+      }
+
+      function renderAlerts() {
+        alertsPanel.innerHTML = "";
+        alertState.items.slice(0, 6).forEach((alert) => {
+          const card = document.createElement("div");
+          card.className = `alert-card ${alert.severity}`;
+          card.innerHTML = `
+            <header>
+              <span>${alert.alert_type}</span>
+              <span>${new Date(alert.created_at).toLocaleTimeString()}</span>
+            </header>
+            <div class="alert-title">${alert.message}</div>
+            <div class="alert-meta">Ship: ${alert.ship_id || "--"}</div>
+          `;
+          alertsPanel.appendChild(card);
+        });
+      }
+
+      function playAlertTone(severity) {
+        if (severity !== "critical") {
+          return;
+        }
+        try {
+          const context = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = 880;
+          gain.gain.value = 0.04;
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start();
+          setTimeout(() => {
+            oscillator.stop();
+            context.close();
+          }, 250);
+        } catch (error) {
+          // Ignore audio failures.
+        }
       }
 
       const drawControl = new L.Control.Draw({
@@ -565,8 +748,16 @@
 
         socket.addEventListener("message", (event) => {
           const payload = JSON.parse(event.data);
+          window.lastShipPayload = payload;
           if (payload.type === "ship_update") {
             handleShips(payload.ships);
+          }
+          if (payload.type === "alert_update") {
+            alertState.items = payload.alerts || [];
+            renderAlerts();
+            if (payload.alerts && payload.alerts[0]) {
+              playAlertTone(payload.alerts[0].severity);
+            }
           }
         });
 
@@ -586,6 +777,19 @@
         commandBtn.addEventListener("click", () => applyRole("command"));
         captainBtn.addEventListener("click", () => applyRole("captain"));
         applyRole(roleState.role);
+        distressSend.addEventListener("click", async () => {
+          const shipId = distressShip.value;
+          const message = distressMessage.value.trim();
+          if (!shipId || !message) {
+            return;
+          }
+          await fetch("/api/distress/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ship_id: shipId, message }),
+          });
+          distressMessage.value = "";
+        });
         connectSocket();
         requestAnimationFrame(animateMarkers);
         setInterval(updateMeta, 1000);

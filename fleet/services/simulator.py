@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from fleet.models import RestrictedZone, Ship
-from fleet.services.alerts import create_geofence_alert
+from fleet.services.alerts import (
+    create_geofence_alert,
+    create_proximity_alert,
+    resolve_proximity_alerts,
+)
 from fleet.services.geofence import point_in_polygon
 from fleet.services.routing import compute_reroute_heading
 
@@ -45,6 +49,20 @@ def _fuel_burn_per_second(speed_knots: float) -> float:
     base_burn_per_hour = 2.0
     speed_burn_per_hour = speed_knots * 0.3
     return (base_burn_per_hour + speed_burn_per_hour) / 3600.0
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_km = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    )
+    return radius_km * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def simulate_tick() -> SimulationResult:
@@ -89,6 +107,22 @@ def simulate_tick() -> SimulationResult:
 
             to_update.append(ship)
             moved += 1
+
+        active_pairs = set()
+        for i, ship_a in enumerate(ships):
+            for ship_b in ships[i + 1 :]:
+                distance_km = _haversine_km(
+                    ship_a.latitude,
+                    ship_a.longitude,
+                    ship_b.latitude,
+                    ship_b.longitude,
+                )
+                if distance_km < 2.0:
+                    pair_key = "-".join(sorted([ship_a.ship_id, ship_b.ship_id]))
+                    active_pairs.add(pair_key)
+                    create_proximity_alert(ship_a, ship_b, distance_km)
+
+        resolve_proximity_alerts(active_pairs)
 
         if to_update:
             Ship.objects.bulk_update(

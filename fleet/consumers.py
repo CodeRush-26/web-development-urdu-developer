@@ -14,3 +14,6 @@ class FleetConsumer(JsonWebsocketConsumer):
 
     def ship_update(self, event):
         self.send_json({"type": "ship_update", "ships": event["payload"]})
+
+    def alert_update(self, event):
+        self.send_json({"type": "alert_update", "alerts": event["payload"]})

@@ -48,6 +48,7 @@ class Alert(models.Model):
 	ALERT_TYPES = (
 		("geofence", "geofence"),
 		("proximity", "proximity"),
+		("distress", "distress"),
 		("system", "system"),
 	)
 	SEVERITIES = (
@@ -58,6 +59,7 @@ class Alert(models.Model):
 	alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
 	severity = models.CharField(max_length=20, choices=SEVERITIES, default="warning")
 	message = models.TextField()
+	details = models.JSONField(default=dict, blank=True)
 	ship = models.ForeignKey(Ship, on_delete=models.CASCADE)
 	zone = models.ForeignKey(RestrictedZone, on_delete=models.SET_NULL, null=True, blank=True)
 	active = models.BooleanField(default=True)

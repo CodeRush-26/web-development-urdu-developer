@@ -10,4 +10,6 @@ urlpatterns = [
     path("api/navigable-water/", views.navigable_water, name="navigable_water"),
     path("api/zones/", views.zones, name="zones"),
     path("api/zones/<int:zone_id>/", views.zone_detail, name="zone_detail"),
+    path("api/alerts/", views.alerts, name="alerts"),
+    path("api/distress/", views.distress, name="distress"),
 ]
