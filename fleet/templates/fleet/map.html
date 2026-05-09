@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fleet Command</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      :root {
+        --bg-deep: #0c1514;
+        --bg-mid: #11201d;
+        --accent: #2ccf9d;
+        --accent-soft: rgba(44, 207, 157, 0.2);
+        --text-main: #e7f6f1;
+        --text-dim: #9dc9bd;
+        --danger: #ff6b6b;
+        --warning: #ffd166;
+        --panel: rgba(10, 18, 17, 0.86);
+        --border: rgba(255, 255, 255, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--text-main);
+        background: radial-gradient(circle at top, #173029 0%, var(--bg-deep) 65%);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) 1fr;
+        height: 100vh;
+      }
+
+      .panel {
+        background: var(--panel);
+        border-right: 1px solid var(--border);
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        backdrop-filter: blur(12px);
+      }
+
+      .panel h1 {
+        font-size: 22px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin: 0;
+      }
+
+      .panel .subtitle {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+
+      .status-card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        background: rgba(16, 28, 26, 0.7);
+      }
+
+      .status-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+
+      .status-item span {
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      .legend {
+        display: grid;
+        gap: 10px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 10px var(--accent-soft);
+      }
+
+      .legend-dot.warning {
+        background: var(--warning);
+        box-shadow: 0 0 10px rgba(255, 209, 102, 0.3);
+      }
+
+      .legend-dot.danger {
+        background: var(--danger);
+        box-shadow: 0 0 10px rgba(255, 107, 107, 0.35);
+      }
+
+      .map-shell {
+        position: relative;
+      }
+
+      #map {
+        height: 100vh;
+        width: 100%;
+      }
+
+      .map-header {
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        z-index: 500;
+        background: rgba(10, 20, 19, 0.82);
+        border: 1px solid var(--border);
+        padding: 14px 18px;
+        border-radius: 14px;
+        backdrop-filter: blur(10px);
+      }
+
+      .map-header .title {
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .map-header .meta {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .leaflet-popup-content-wrapper {
+        background: #0c1716;
+        color: var(--text-main);
+        border-radius: 12px;
+      }
+
+      .leaflet-popup-tip {
+        background: #0c1716;
+      }
+
+      .popup-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+
+      .popup-grid {
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .popup-grid span {
+        color: var(--text-main);
+        font-weight: 500;
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          width: 260px;
+          z-index: 600;
+          border-radius: 18px;
+          border: 1px solid var(--border);
+        }
+
+        .map-header {
+          left: 16px;
+          right: 16px;
+          width: fit-content;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="panel">
+        <div>
+          <h1>Fleet Command</h1>
+          <div class="subtitle">Strait of Hormuz live corridor</div>
+        </div>
+        <div class="status-card">
+          <div class="status-grid">
+            <div class="status-item">
+              Connected <span id="ws-status">Connecting</span>
+            </div>
+            <div class="status-item">
+              Ships Online <span id="ship-count">0</span>
+            </div>
+            <div class="status-item">
+              Last Update <span id="last-update">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-dot"></div>
+            Normal
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot warning"></div>
+            Rerouting
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot danger"></div>
+            Distressed / Stopped
+          </div>
+        </div>
+      </aside>
+      <main class="map-shell">
+        <div class="map-header">
+          <div class="title">Operational Map</div>
+          <div class="meta" id="map-meta">Initializing...</div>
+        </div>
+        <div id="map"></div>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      const shipMarkers = new Map();
+      const targetPositions = new Map();
+      const portLookup = new Map();
+      const updateState = {
+        lastUpdate: null,
+      };
+
+      const map = L.map("map", {
+        zoomControl: false,
+        preferCanvas: true,
+      }).setView([26.5, 54.5], 6);
+
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 8,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      const waterLayer = L.polygon([], {
+        color: "#2ccf9d",
+        weight: 1,
+        fillColor: "#12342b",
+        fillOpacity: 0.18,
+      }).addTo(map);
+
+      const statusEl = document.getElementById("ws-status");
+      const shipCountEl = document.getElementById("ship-count");
+      const lastUpdateEl = document.getElementById("last-update");
+      const mapMetaEl = document.getElementById("map-meta");
+
+      function statusColor(status) {
+        const value = (status || "").toLowerCase();
+        if (value.includes("reroute")) {
+          return "#ffd166";
+        }
+        if (value.includes("distress") || value.includes("stopped") || value.includes("dead")) {
+          return "#ff6b6b";
+        }
+        return "#2ccf9d";
+      }
+
+      function formatPopup(ship) {
+        const destination = portLookup.get(ship.destination_id) || ship.destination_id;
+        return `
+          <div class="popup-title">${ship.name} (${ship.ship_id})</div>
+          <div class="popup-grid">
+            <div>Fuel: <span>${ship.fuel.toFixed(1)} tons</span></div>
+            <div>Speed: <span>${ship.speed.toFixed(1)} kn</span></div>
+            <div>Heading: <span>${ship.heading}°</span></div>
+            <div>Destination: <span>${destination}</span></div>
+            <div>Cargo: <span>${ship.cargo}</span></div>
+            <div>Status: <span>${ship.status}</span></div>
+          </div>
+        `;
+      }
+
+      function ensureMarker(ship) {
+        if (shipMarkers.has(ship.ship_id)) {
+          return shipMarkers.get(ship.ship_id);
+        }
+
+        const marker = L.circleMarker([ship.latitude, ship.longitude], {
+          radius: 6,
+          color: statusColor(ship.status),
+          weight: 2,
+          fillColor: statusColor(ship.status),
+          fillOpacity: 0.9,
+        }).addTo(map);
+
+        marker.bindPopup(formatPopup(ship), { closeButton: false });
+        shipMarkers.set(ship.ship_id, marker);
+        return marker;
+      }
+
+      function setTarget(ship) {
+        const marker = ensureMarker(ship);
+        marker.setStyle({ color: statusColor(ship.status), fillColor: statusColor(ship.status) });
+        marker.setPopupContent(formatPopup(ship));
+
+        targetPositions.set(ship.ship_id, {
+          lat: ship.latitude,
+          lng: ship.longitude,
+          timestamp: performance.now(),
+          from: marker.getLatLng(),
+        });
+      }
+
+      function animateMarkers(time) {
+        targetPositions.forEach((target, shipId) => {
+          const marker = shipMarkers.get(shipId);
+          if (!marker) {
+            return;
+          }
+          const elapsed = Math.min((time - target.timestamp) / 950, 1);
+          const lat = target.from.lat + (target.lat - target.from.lat) * elapsed;
+          const lng = target.from.lng + (target.lng - target.from.lng) * elapsed;
+          marker.setLatLng([lat, lng]);
+          if (elapsed >= 1) {
+            targetPositions.delete(shipId);
+          }
+        });
+
+        requestAnimationFrame(animateMarkers);
+      }
+
+      async function fetchPorts() {
+        const response = await fetch("/api/ports/");
+        const data = await response.json();
+        data.ports.forEach((port) => {
+          portLookup.set(port.code, port.name);
+        });
+      }
+
+      async function fetchWater() {
+        const response = await fetch("/api/navigable-water/");
+        const data = await response.json();
+        if (Array.isArray(data.polygon) && data.polygon.length) {
+          waterLayer.setLatLngs(data.polygon);
+          map.fitBounds(waterLayer.getBounds(), { padding: [40, 40] });
+        }
+      }
+
+      function updateMeta() {
+        if (!updateState.lastUpdate) {
+          lastUpdateEl.textContent = "--";
+          return;
+        }
+        const seconds = Math.max(0, Math.floor((Date.now() - updateState.lastUpdate) / 1000));
+        lastUpdateEl.textContent = `${seconds}s ago`;
+      }
+
+      function handleShips(ships) {
+        ships.forEach(setTarget);
+        shipCountEl.textContent = ships.length;
+        updateState.lastUpdate = Date.now();
+        mapMetaEl.textContent = `Tracking ${ships.length} active hulls`;
+      }
+
+      function connectSocket() {
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const socket = new WebSocket(`${protocol}://${window.location.host}/ws/fleet/`);
+
+        socket.addEventListener("open", () => {
+          statusEl.textContent = "Live";
+        });
+
+        socket.addEventListener("message", (event) => {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "ship_update") {
+            handleShips(payload.ships);
+          }
+        });
+
+        socket.addEventListener("close", () => {
+          statusEl.textContent = "Reconnecting";
+          setTimeout(connectSocket, 1200);
+        });
+
+        socket.addEventListener("error", () => {
+          statusEl.textContent = "Error";
+        });
+      }
+
+      async function init() {
+        statusEl.textContent = "Connecting";
+        await Promise.all([fetchPorts(), fetchWater()]);
+        connectSocket();
+        requestAnimationFrame(animateMarkers);
+        setInterval(updateMeta, 1000);
+      }
+
+      init();
+    </script>
+  </body>
+</html>

@@ -3,6 +3,9 @@ from django.urls import path
 from fleet import views
 
 urlpatterns = [
-    path("", views.home, name="home"),
+    path("", views.map_view, name="map"),
+    path("health/", views.health, name="health"),
     path("api/ships/", views.ship_positions, name="ship_positions"),
+    path("api/ports/", views.ports, name="ports"),
+    path("api/navigable-water/", views.navigable_water, name="navigable_water"),
 ]
