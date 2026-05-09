@@ -30,7 +30,7 @@ class Ship(models.Model):
 	fuel = models.FloatField()
 	cargo = models.CharField(max_length=100)
 	status = models.CharField(max_length=50)
- 	assigned_captain = models.CharField(max_length=100, blank=True, default="")
+	assigned_captain = models.CharField(max_length=100, blank=True, default="")
 
 	def __str__(self) -> str:
 		return f"{self.ship_id} - {self.name}"
