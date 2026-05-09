@@ -411,6 +411,10 @@
         </div>
         <div class="captain-only">
           <div class="status-card">
+            <div class="status-item">Select Captain</div>
+            <select id="captain-selector" class="captain-select"></select>
+          </div>
+          <div class="status-card">
             <div class="status-item">Assigned Ship</div>
             <select id="captain-ship" class="captain-select"></select>
           </div>
@@ -461,12 +465,14 @@
       const targetPositions = new Map();
       const portLookup = new Map();
       const zonesLayer = new L.FeatureGroup();
+      let allShips = [];
       const updateState = {
         lastUpdate: null,
       };
       const roleState = {
         role: localStorage.getItem("fleet-role") || "command",
         assignedShipId: localStorage.getItem("fleet-captain-ship") || "",
+        captainName: localStorage.getItem("fleet-selected-captain") || "",
       };
       const alertState = {
         items: [],
@@ -502,6 +508,7 @@
       const alertsPanel = document.getElementById("alerts-panel");
       const reroutingPanel = document.getElementById("rerouting-panel");
       const distressShip = document.getElementById("distress-ship");
+      const captainSelector = document.getElementById("captain-selector");
       const captainShipSelect = document.getElementById("captain-ship");
       const distressMessage = document.getElementById("distress-message");
       const distressSend = document.getElementById("distress-send");
@@ -686,13 +693,19 @@
       }
 
       function handleShips(ships) {
-        ships.forEach(setTarget);
-        shipCountEl.textContent = ships.length;
+        allShips = ships;
+        let filteredShips = ships;
+        if (roleState.role === "captain" && roleState.captainName) {
+          filteredShips = ships.filter((ship) => ship.assigned_captain === roleState.captainName);
+        }
+        filteredShips.forEach(setTarget);
+        shipCountEl.textContent = filteredShips.length;
         updateState.lastUpdate = Date.now();
-        mapMetaEl.textContent = `Tracking ${ships.length} active hulls`;
+        mapMetaEl.textContent = `Tracking ${filteredShips.length} active hulls`;
         updateDistressShips(ships);
         updateCaptainShips(ships);
-        renderRerouting(ships);
+        updateCaptainSelector(ships);
+        renderRerouting(filteredShips);
       }
 
       function renderRerouting(ships) {
@@ -718,8 +731,12 @@
         if (distressShip.options.length === ships.length) {
           return;
         }
+        let shipsForDistress = ships;
+        if (roleState.role === "captain" && roleState.captainName) {
+          shipsForDistress = ships.filter((ship) => ship.assigned_captain === roleState.captainName);
+        }
         distressShip.innerHTML = "";
-        ships.forEach((ship) => {
+        shipsForDistress.forEach((ship) => {
           const option = document.createElement("option");
           option.value = ship.ship_id;
           option.textContent = `${ship.name} (${ship.ship_id})`;
@@ -728,23 +745,72 @@
       }
 
       function updateCaptainShips(ships) {
+        let shipsToShow = ships;
+        if (roleState.role === "captain" && roleState.captainName) {
+          shipsToShow = ships.filter((ship) => ship.assigned_captain === roleState.captainName);
+        }
         captainShipSelect.innerHTML = "";
-        ships.forEach((ship) => {
+        shipsToShow.forEach((ship) => {
           const option = document.createElement("option");
           option.value = ship.ship_id;
           option.textContent = `${ship.name} (${ship.ship_id}) - Captain: ${ship.assigned_captain || "Unassigned"}`;
           captainShipSelect.appendChild(option);
         });
-        if (ships.length > 0) {
-          captainShipSelect.value = ships[0].ship_id;
-          roleState.assignedShipId = ships[0].ship_id;
-          localStorage.setItem("fleet-captain-ship", ships[0].ship_id);
+        if (shipsToShow.length > 0) {
+          captainShipSelect.value = shipsToShow[0].ship_id;
+          roleState.assignedShipId = shipsToShow[0].ship_id;
+          localStorage.setItem("fleet-captain-ship", shipsToShow[0].ship_id);
         }
       }
 
+      function updateCaptainSelector(ships) {
+        const captains = new Set();
+        ships.forEach((ship) => {
+          if (ship.assigned_captain) {
+            captains.add(ship.assigned_captain);
+          }
+        });
+
+        const selectedCaptain = localStorage.getItem("fleet-selected-captain") || "";
+        captainSelector.innerHTML = "";
+
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Select a Captain...";
+        captainSelector.appendChild(option);
+
+        Array.from(captains).sort().forEach((captain) => {
+          const opt = document.createElement("option");
+          opt.value = captain;
+          opt.textContent = captain;
+          captainSelector.appendChild(opt);
+        });
+
+        if (selectedCaptain && captains.has(selectedCaptain)) {
+          captainSelector.value = selectedCaptain;
+          roleState.captainName = selectedCaptain;
+        }
+      }
+
+      captainSelector.addEventListener("change", (e) => {
+        const captain = e.target.value;
+        if (captain) {
+          roleState.captainName = captain;
+          localStorage.setItem("fleet-selected-captain", captain);
+          location.reload();
+        }
+      });
+
       function renderAlerts() {
+        let alertsToShow = alertState.items;
+        if (roleState.role === "captain" && roleState.captainName) {
+          alertsToShow = alertState.items.filter((alert) => {
+            const ship = allShips.find((s) => s.ship_id === alert.ship_id);
+            return ship && ship.assigned_captain === roleState.captainName;
+          });
+        }
         alertsPanel.innerHTML = "";
-        alertState.items.slice(0, 6).forEach((alert) => {
+        alertsToShow.slice(0, 6).forEach((alert) => {
           const card = document.createElement("div");
           card.className = `alert-card ${alert.severity}`;
           card.innerHTML = `
