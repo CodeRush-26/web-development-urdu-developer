@@ -1,18 +1,23 @@
 # Fleet Control System
 
+Live ship control system for the Strait of Hormuz scenario. Built with Django and real-time services.
+
 ## Quick Start (Docker)
 
-1. Copy the example environment file:
+1. Create your environment file:
    - `cp .env.example .env`
-2. Update `.env` with your Postgres URL.
+2. Set your Postgres URL(s) in `.env`.
 3. Run:
    - `docker compose up --build`
+4. In a new terminal, run migrations and seed data:
+   - `docker compose exec web python manage.py migrate`
+   - `docker compose exec web python manage.py load_fleet`
 
-The app will be available at http://localhost:8000
+App URL: http://localhost:8000
 
 ## Local Development (without Docker)
 
-1. Create a virtual environment and install dependencies:
+1. Install dependencies:
    - `pip install -r requirements.txt`
 2. Run migrations:
    - `python manage.py migrate`
@@ -20,3 +25,10 @@ The app will be available at http://localhost:8000
    - `python manage.py load_fleet`
 4. Start server:
    - `python manage.py runserver`
+
+## Environment Variables
+
+- `Fleet212_POSTGRES_URL` or `Fleet212_PRISMA_DATABASE_URL` (recommended)
+- `DATABASE_URL` (alternative name)
+
+If no database URL is set, Django falls back to SQLite for local use.
