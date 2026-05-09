@@ -2,6 +2,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from fleet.services.broadcaster import broadcast_ship_positions
 from fleet.services.simulator import simulate_tick
 
 
@@ -19,6 +20,7 @@ class Command(BaseCommand):
         while True:
             result = simulate_tick()
             count += 1
+            broadcast_ship_positions()
             self.stdout.write(
                 f"Tick {count}: moved={result.moved}, stopped={result.stopped}"
             )
