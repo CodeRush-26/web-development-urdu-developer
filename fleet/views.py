@@ -1,10 +1,12 @@
 import json
+from datetime import timedelta
 
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
-from fleet.models import Alert, NavigableWater, Port, RestrictedZone, Ship
+from fleet.models import Alert, NavigableWater, Port, RestrictedZone, Ship, ShipSnapshot
 from fleet.services.alerts import create_distress_alert
 from fleet.services.broadcaster import broadcast_alerts
 from fleet.services.nlp import parse_distress
@@ -16,8 +18,30 @@ def map_view(request):
 
 
 def ship_positions(request):
+	role = request.GET.get("role")
+	captain_name = request.GET.get("captain_name")
+	ship_id = request.GET.get("ship_id")
+	
+	if role == "captain":
+		if not captain_name:
+			return JsonResponse({"error": "missing_captain_name"}, status=400)
+		# Captain can only see their assigned ship(s)
+		ships_qs = Ship.objects.filter(assigned_captain=captain_name)
+		if ship_id:
+			ships_qs = ships_qs.filter(ship_id=ship_id)
+	elif role == "command":
+		# Command has full access to all ships
+		ships_qs = Ship.objects.all()
+		if ship_id:
+			ships_qs = ships_qs.filter(ship_id=ship_id)
+	else:
+		# Default: full access if no role specified
+		ships_qs = Ship.objects.all()
+		if ship_id:
+			ships_qs = ships_qs.filter(ship_id=ship_id)
+	
 	ships = list(
-		Ship.objects.values(
+		ships_qs.values(
 			"ship_id",
 			"name",
 			"latitude",
@@ -28,6 +52,7 @@ def ship_positions(request):
 			"fuel",
 			"cargo",
 			"status",
+			"assigned_captain",
 		)
 	)
 	return JsonResponse({"ships": ships})
@@ -87,9 +112,31 @@ def zone_detail(request, zone_id: int):
 
 
 def alerts(request):
+	role = request.GET.get("role")
+	captain_name = request.GET.get("captain_name")
+	ship_id = request.GET.get("ship_id")
+	
+	alerts_qs = Alert.objects.filter(active=True)
+	
+	if role == "captain":
+		if not captain_name:
+			return JsonResponse({"error": "missing_captain_name"}, status=400)
+		# Captain can only see alerts for their assigned ship(s)
+		captain_ships = Ship.objects.filter(assigned_captain=captain_name).values_list("ship_id", flat=True)
+		alerts_qs = alerts_qs.filter(ship_id__in=captain_ships)
+		if ship_id:
+			alerts_qs = alerts_qs.filter(ship_id=ship_id)
+	elif role == "command":
+		# Command has full access to all alerts
+		if ship_id:
+			alerts_qs = alerts_qs.filter(ship_id=ship_id)
+	else:
+		# Default: full access if no role specified
+		if ship_id:
+			alerts_qs = alerts_qs.filter(ship_id=ship_id)
+	
 	alerts_data = list(
-		Alert.objects.filter(active=True)
-		.order_by("-created_at")
+		alerts_qs.order_by("-created_at")
 		.values(
 			"id",
 			"alert_type",
@@ -104,6 +151,51 @@ def alerts(request):
 	for alert in alerts_data:
 		alert["created_at"] = alert["created_at"].isoformat()
 	return JsonResponse({"alerts": alerts_data})
+
+
+def playback(request):
+	role = request.GET.get("role")
+	captain_name = request.GET.get("captain_name")
+	ship_id = request.GET.get("ship_id")
+	
+	if not ship_id:
+		return JsonResponse({"error": "missing_ship_id"}, status=400)
+	
+	# Role-based access control
+	if role == "captain":
+		if not captain_name:
+			return JsonResponse({"error": "missing_captain_name"}, status=400)
+		# Verify captain can access this ship
+		try:
+			ship = Ship.objects.get(ship_id=ship_id)
+			if ship.assigned_captain != captain_name:
+				return JsonResponse({"error": "unauthorized"}, status=403)
+		except Ship.DoesNotExist:
+			return JsonResponse({"error": "ship_not_found"}, status=404)
+	elif role == "command":
+		# Command has full access
+		pass
+	else:
+		# Default: allow if no role specified
+		pass
+
+	cutoff = timezone.now() - timedelta(hours=1)
+	snapshots = list(
+		ShipSnapshot.objects.filter(ship_id=ship_id, created_at__gte=cutoff)
+		.order_by("created_at")
+		.values(
+			"latitude",
+			"longitude",
+			"speed",
+			"heading",
+			"fuel",
+			"status",
+			"created_at",
+		)
+	)
+	for snapshot in snapshots:
+		snapshot["created_at"] = snapshot["created_at"].isoformat()
+	return JsonResponse({"ship_id": ship_id, "snapshots": snapshots})
 
 
 @csrf_exempt

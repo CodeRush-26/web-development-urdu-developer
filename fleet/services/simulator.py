@@ -1,9 +1,11 @@
 import math
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.db import transaction
+from django.utils import timezone
 
-from fleet.models import RestrictedZone, Ship
+from fleet.models import RestrictedZone, Ship, ShipSnapshot, SimulationState
 from fleet.services.alerts import (
     create_geofence_alert,
     create_proximity_alert,
@@ -70,6 +72,7 @@ def simulate_tick() -> SimulationResult:
     stopped = 0
     to_update = []
     zones = list(RestrictedZone.objects.all())
+    now = timezone.now()
 
     with transaction.atomic():
         ships = list(Ship.objects.select_for_update())
@@ -133,5 +136,29 @@ def simulate_tick() -> SimulationResult:
             Ship.objects.bulk_update(
                 to_update, ["latitude", "longitude", "fuel", "status", "heading"]
             )
+
+        snapshot_state, _created = SimulationState.objects.get_or_create(
+            key="playback_snapshot"
+        )
+        last_snapshot_at = snapshot_state.last_tick
+        if not last_snapshot_at or (now - last_snapshot_at).total_seconds() >= 30:
+            snapshots = [
+                ShipSnapshot(
+                    ship=ship,
+                    latitude=ship.latitude,
+                    longitude=ship.longitude,
+                    speed=ship.speed,
+                    heading=ship.heading,
+                    fuel=ship.fuel,
+                    status=ship.status,
+                )
+                for ship in ships
+            ]
+            if snapshots:
+                ShipSnapshot.objects.bulk_create(snapshots)
+            cutoff = now - timedelta(hours=1)
+            ShipSnapshot.objects.filter(created_at__lt=cutoff).delete()
+            snapshot_state.last_tick = now
+            snapshot_state.save(update_fields=["last_tick"])
 
     return SimulationResult(moved=moved, stopped=stopped)

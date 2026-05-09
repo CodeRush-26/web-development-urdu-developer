@@ -30,6 +30,7 @@ class Ship(models.Model):
 	fuel = models.FloatField()
 	cargo = models.CharField(max_length=100)
 	status = models.CharField(max_length=50)
+ 	assigned_captain = models.CharField(max_length=100, blank=True, default="")
 
 	def __str__(self) -> str:
 		return f"{self.ship_id} - {self.name}"
@@ -68,6 +69,25 @@ class Alert(models.Model):
 
 	def __str__(self) -> str:
 		return f"{self.alert_type} - {self.ship.ship_id}"
+
+
+class ShipSnapshot(models.Model):
+	ship = models.ForeignKey(Ship, on_delete=models.CASCADE)
+	latitude = models.FloatField()
+	longitude = models.FloatField()
+	speed = models.FloatField()
+	heading = models.IntegerField()
+	fuel = models.FloatField()
+	status = models.CharField(max_length=50)
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		indexes = [
+			models.Index(fields=["ship", "created_at"]),
+		]
+
+	def __str__(self) -> str:
+		return f"{self.ship.ship_id} @ {self.created_at.isoformat()}"
 
 
 class SimulationState(models.Model):

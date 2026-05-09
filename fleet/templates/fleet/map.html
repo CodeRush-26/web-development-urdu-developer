@@ -195,6 +195,17 @@
         padding: 8px;
       }
 
+      .captain-select {
+        width: 100%;
+        background: rgba(6, 12, 11, 0.6);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-main);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        padding: 8px;
+      }
+
       .distress-form button {
         background: var(--danger);
         color: #160707;
@@ -236,6 +247,14 @@
       .role-toggle button.active {
         background: var(--accent);
         color: #071312;
+      }
+
+      .captain-only {
+        display: none;
+      }
+
+      body.role-captain .captain-only {
+        display: block;
       }
 
       .legend-item {
@@ -390,6 +409,12 @@
           <button id="role-command" class="active" type="button">Command</button>
           <button id="role-captain" type="button">Captain</button>
         </div>
+        <div class="captain-only">
+          <div class="status-card">
+            <div class="status-item">Assigned Ship</div>
+            <select id="captain-ship" class="captain-select"></select>
+          </div>
+        </div>
         <div class="legend">
           <div class="legend-item">
             <div class="legend-dot"></div>
@@ -441,6 +466,7 @@
       };
       const roleState = {
         role: localStorage.getItem("fleet-role") || "command",
+        assignedShipId: localStorage.getItem("fleet-captain-ship") || "",
       };
       const alertState = {
         items: [],
@@ -476,6 +502,7 @@
       const alertsPanel = document.getElementById("alerts-panel");
       const reroutingPanel = document.getElementById("rerouting-panel");
       const distressShip = document.getElementById("distress-ship");
+      const captainShipSelect = document.getElementById("captain-ship");
       const distressMessage = document.getElementById("distress-message");
       const distressSend = document.getElementById("distress-send");
       const distressResolve = document.getElementById("distress-resolve");
