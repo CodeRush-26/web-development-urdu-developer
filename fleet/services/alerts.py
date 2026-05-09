@@ -55,13 +55,18 @@ def resolve_proximity_alerts(active_pair_keys: set[str]) -> None:
 
 
 def create_distress_alert(ship: Ship, parsed: dict, raw_message: str) -> Alert:
-    if ship.status != "distress":
+    severity = parsed.get("severity", "warning")
+    if severity == "critical":
+        ship.status = "stopped"
+        ship.speed = 0
+        ship.save(update_fields=["status", "speed"])
+    elif ship.status != "distress":
         ship.status = "distress"
         ship.save(update_fields=["status"])
     message = f"Distress from {ship.name}: {parsed.get('summary', 'reported issue')}."
     return Alert.objects.create(
         alert_type="distress",
-        severity=parsed.get("severity", "warning"),
+        severity=severity,
         message=message,
         ship=ship,
         details={
