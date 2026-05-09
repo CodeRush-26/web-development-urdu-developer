@@ -3,7 +3,10 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from fleet.models import Ship
+from fleet.models import RestrictedZone, Ship
+from fleet.services.alerts import create_geofence_alert
+from fleet.services.geofence import point_in_polygon
+from fleet.services.routing import compute_reroute_heading
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,7 @@ def simulate_tick() -> SimulationResult:
     moved = 0
     stopped = 0
     to_update = []
+    zones = list(RestrictedZone.objects.all())
 
     with transaction.atomic():
         ships = list(Ship.objects.select_for_update())
@@ -74,12 +78,21 @@ def simulate_tick() -> SimulationResult:
             else:
                 ship.status = "normal"
 
+            for zone in zones:
+                if point_in_polygon((ship.latitude, ship.longitude), zone.polygon):
+                    create_geofence_alert(ship, zone)
+                    ship.status = "rerouting"
+                    ship.heading = compute_reroute_heading(
+                        ship.latitude, ship.longitude, zone.polygon
+                    )
+                    break
+
             to_update.append(ship)
             moved += 1
 
         if to_update:
             Ship.objects.bulk_update(
-                to_update, ["latitude", "longitude", "fuel", "status"]
+                to_update, ["latitude", "longitude", "fuel", "status", "heading"]
             )
 
     return SimulationResult(moved=moved, stopped=stopped)
