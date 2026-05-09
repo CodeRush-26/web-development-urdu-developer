@@ -1,1 +1,22 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/ncRwI7td)
+# Fleet Control System
+
+## Quick Start (Docker)
+
+1. Copy the example environment file:
+   - `cp .env.example .env`
+2. Update `.env` with your Postgres URL.
+3. Run:
+   - `docker compose up --build`
+
+The app will be available at http://localhost:8000
+
+## Local Development (without Docker)
+
+1. Create a virtual environment and install dependencies:
+   - `pip install -r requirements.txt`
+2. Run migrations:
+   - `python manage.py migrate`
+3. Load initial data:
+   - `python manage.py load_fleet`
+4. Start server:
+   - `python manage.py runserver`
