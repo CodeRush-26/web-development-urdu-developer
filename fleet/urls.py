@@ -12,4 +12,5 @@ urlpatterns = [
     path("api/zones/<int:zone_id>/", views.zone_detail, name="zone_detail"),
     path("api/alerts/", views.alerts, name="alerts"),
     path("api/distress/", views.distress, name="distress"),
+    path("api/distress/resolve/", views.distress_resolve, name="distress_resolve"),
 ]

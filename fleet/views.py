@@ -128,5 +128,35 @@ def distress(request):
 	return JsonResponse({"alert_id": alert.id, "parsed": parsed})
 
 
+@csrf_exempt
+def distress_resolve(request):
+	if request.method != "POST":
+		return JsonResponse({"error": "method_not_allowed"}, status=405)
+
+	payload = json.loads(request.body or "{}")
+	ship_id = payload.get("ship_id")
+	if not ship_id:
+		return JsonResponse({"error": "missing_fields"}, status=400)
+
+	try:
+		ship = Ship.objects.get(ship_id=ship_id)
+	except Ship.DoesNotExist:
+		return JsonResponse({"error": "ship_not_found"}, status=404)
+
+	if ship.status in {"distress", "stopped"}:
+		ship.status = "normal"
+		if ship.speed == 0:
+			ship.speed = 12
+			ship.save(update_fields=["status", "speed"])
+		else:
+			ship.save(update_fields=["status"])
+
+	Alert.objects.filter(alert_type="distress", ship=ship, active=True).update(
+		active=False
+	)
+	broadcast_alerts()
+	return JsonResponse({"resolved": True, "ship_id": ship.ship_id})
+
+
 def health(request):
 	return JsonResponse({"status": "ok", "message": "Fleet API running."})

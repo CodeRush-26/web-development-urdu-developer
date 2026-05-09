@@ -202,6 +202,12 @@
         cursor: pointer;
       }
 
+      .distress-form button.secondary {
+        background: transparent;
+        color: var(--text-main);
+        border: 1px solid var(--border);
+      }
+
       .role-toggle {
         display: flex;
         align-items: center;
@@ -291,6 +297,18 @@
 
       body.role-captain .leaflet-draw {
         display: none;
+      }
+
+      .leaflet-div-icon.leaflet-editing-icon,
+      .leaflet-marker-icon.leaflet-editing-icon {
+        width: 12px;
+        height: 12px;
+        margin-left: -6px;
+        margin-top: -6px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid #0b1b18;
+        box-shadow: 0 0 10px var(--accent-soft);
       }
 
       .leaflet-popup-content-wrapper {
@@ -391,6 +409,7 @@
           <select id="distress-ship"></select>
           <textarea id="distress-message" rows="3" placeholder="Captain distress message"></textarea>
           <button id="distress-send" type="button">Send Distress</button>
+          <button id="distress-resolve" class="secondary" type="button">Resolve Distress</button>
         </div>
       </aside>
       <main class="map-shell">
@@ -455,6 +474,7 @@
       const distressShip = document.getElementById("distress-ship");
       const distressMessage = document.getElementById("distress-message");
       const distressSend = document.getElementById("distress-send");
+      const distressResolve = document.getElementById("distress-resolve");
 
       function applyRole(role) {
         roleState.role = role;
@@ -829,6 +849,17 @@
             body: JSON.stringify({ ship_id: shipId, message }),
           });
           distressMessage.value = "";
+        });
+        distressResolve.addEventListener("click", async () => {
+          const shipId = distressShip.value;
+          if (!shipId) {
+            return;
+          }
+          await fetch("/api/distress/resolve/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ship_id: shipId }),
+          });
         });
         connectSocket();
         requestAnimationFrame(animateMarkers);
