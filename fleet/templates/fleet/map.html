@@ -483,6 +483,28 @@
         return "#2ccf9d";
       }
 
+      function markerStyle(status) {
+        const color = statusColor(status);
+        const value = (status || "").toLowerCase().trim();
+        let radius = 6;
+        let weight = 2;
+        if (value.includes("reroute")) {
+          radius = 8;
+          weight = 3;
+        }
+        if (value.includes("distress") || value.includes("stopped") || value.includes("dead")) {
+          radius = 9;
+          weight = 3;
+        }
+        return {
+          radius,
+          color,
+          weight,
+          fillColor: color,
+          fillOpacity: 0.9,
+        };
+      }
+
       function formatPopup(ship) {
         const destination = portLookup.get(ship.destination_id) || ship.destination_id;
         return `
@@ -503,22 +525,21 @@
           return shipMarkers.get(ship.ship_id);
         }
 
-        const marker = L.circleMarker([ship.latitude, ship.longitude], {
-          radius: 6,
-          color: statusColor(ship.status),
-          weight: 2,
-          fillColor: statusColor(ship.status),
-          fillOpacity: 0.9,
-        }).addTo(map);
+        const marker = L.circleMarker(
+          [ship.latitude, ship.longitude],
+          markerStyle(ship.status)
+        ).addTo(map);
 
         marker.bindPopup(formatPopup(ship), { closeButton: false });
+        marker.on("click", () => marker.openPopup());
         shipMarkers.set(ship.ship_id, marker);
         return marker;
       }
 
       function setTarget(ship) {
         const marker = ensureMarker(ship);
-        marker.setStyle({ color: statusColor(ship.status), fillColor: statusColor(ship.status) });
+        marker.setStyle(markerStyle(ship.status));
+        marker.setRadius(markerStyle(ship.status).radius);
         marker.setPopupContent(formatPopup(ship));
 
         targetPositions.set(ship.ship_id, {
@@ -629,7 +650,7 @@
         }
         rerouting.forEach((ship) => {
           reroutingPanel.innerHTML += `
-            <div class="item">
+            <div class="item" data-ship-id="${ship.ship_id}">
               <span>${ship.name}</span>
               <span>${ship.ship_id}</span>
             </div>
@@ -777,6 +798,20 @@
         commandBtn.addEventListener("click", () => applyRole("command"));
         captainBtn.addEventListener("click", () => applyRole("captain"));
         applyRole(roleState.role);
+        reroutingPanel.addEventListener("click", (event) => {
+          const target = event.target.closest("[data-ship-id]");
+          if (!target) {
+            return;
+          }
+          const shipId = target.getAttribute("data-ship-id");
+          const marker = shipMarkers.get(shipId);
+          if (marker) {
+            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 7), {
+              animate: true,
+            });
+            marker.openPopup();
+          }
+        });
         distressSend.addEventListener("click", async () => {
           const shipId = distressShip.value;
           const message = distressMessage.value.trim();
