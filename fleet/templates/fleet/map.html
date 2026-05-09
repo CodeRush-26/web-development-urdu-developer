@@ -691,6 +691,7 @@
         updateState.lastUpdate = Date.now();
         mapMetaEl.textContent = `Tracking ${ships.length} active hulls`;
         updateDistressShips(ships);
+        updateCaptainShips(ships);
         renderRerouting(ships);
       }
 
@@ -724,6 +725,21 @@
           option.textContent = `${ship.name} (${ship.ship_id})`;
           distressShip.appendChild(option);
         });
+      }
+
+      function updateCaptainShips(ships) {
+        captainShipSelect.innerHTML = "";
+        ships.forEach((ship) => {
+          const option = document.createElement("option");
+          option.value = ship.ship_id;
+          option.textContent = `${ship.name} (${ship.ship_id}) - Captain: ${ship.assigned_captain || "Unassigned"}`;
+          captainShipSelect.appendChild(option);
+        });
+        if (ships.length > 0) {
+          captainShipSelect.value = ships[0].ship_id;
+          roleState.assignedShipId = ships[0].ship_id;
+          localStorage.setItem("fleet-captain-ship", ships[0].ship_id);
+        }
       }
 
       function renderAlerts() {
