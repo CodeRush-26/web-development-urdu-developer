@@ -538,8 +538,12 @@
 
       function setTarget(ship) {
         const marker = ensureMarker(ship);
-        marker.setStyle(markerStyle(ship.status));
-        marker.setRadius(markerStyle(ship.status).radius);
+        const style = markerStyle(ship.status);
+        marker.setStyle(style);
+        marker.setRadius(style.radius);
+        marker.options.color = style.color;
+        marker.options.fillColor = style.fillColor;
+        marker.redraw();
         marker.setPopupContent(formatPopup(ship));
 
         targetPositions.set(ship.ship_id, {
