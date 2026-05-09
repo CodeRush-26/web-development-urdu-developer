@@ -473,7 +473,7 @@
       }
 
       function statusColor(status) {
-        const value = (status || "").toLowerCase();
+        const value = (status || "").toLowerCase().trim();
         if (value.includes("reroute")) {
           return "#ffd166";
         }
