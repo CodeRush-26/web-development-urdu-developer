@@ -474,7 +474,7 @@
 
       function statusColor(status) {
         const value = (status || "").toLowerCase().trim();
-        if (value.includes("reroute")) {
+        if (value.includes("rerout")) {
           return "#ffd166";
         }
         if (value.includes("distress") || value.includes("stopped") || value.includes("dead")) {
@@ -488,7 +488,7 @@
         const value = (status || "").toLowerCase().trim();
         let radius = 6;
         let weight = 2;
-        if (value.includes("reroute")) {
+        if (value.includes("rerout")) {
           radius = 8;
           weight = 3;
         }
