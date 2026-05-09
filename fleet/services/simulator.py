@@ -80,6 +80,11 @@ def simulate_tick() -> SimulationResult:
                     to_update.append(ship)
                 stopped += 1
                 continue
+            if ship.status == "stopped":
+                ship.speed = 0
+                to_update.append(ship)
+                stopped += 1
+                continue
 
             new_lat, new_lon = _apply_motion(
                 lat=ship.latitude,
@@ -93,7 +98,7 @@ def simulate_tick() -> SimulationResult:
             ship.fuel = max(0.0, ship.fuel - _fuel_burn_per_second(ship.speed))
             if ship.fuel == 0.0:
                 ship.status = "dead-in-water"
-            else:
+            elif ship.status != "distress":
                 ship.status = "normal"
 
             for zone in zones:
