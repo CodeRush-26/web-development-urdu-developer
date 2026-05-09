@@ -33,3 +33,11 @@ class Ship(models.Model):
 
 	def __str__(self) -> str:
 		return f"{self.ship_id} - {self.name}"
+
+
+class SimulationState(models.Model):
+	key = models.CharField(max_length=50, primary_key=True)
+	last_tick = models.DateTimeField(null=True, blank=True)
+
+	def __str__(self) -> str:
+		return self.key
