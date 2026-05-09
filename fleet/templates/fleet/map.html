@@ -775,6 +775,7 @@
           const payload = JSON.parse(event.data);
           window.lastShipPayload = payload;
           if (payload.type === "ship_update") {
+            window.lastShipUpdate = payload;
             handleShips(payload.ships);
           }
           if (payload.type === "alert_update") {
